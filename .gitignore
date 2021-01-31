@@ -9,3 +9,6 @@ build/
 /*.egg-info
 .cache/
 .coverage
+
+# VSCode setting file
+.vscode

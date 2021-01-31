@@ -193,7 +193,7 @@ class RandomWalk():
 
         return move, move_real, real
 
-    def _get_starts(self, same_start=False):
+    def _get_starts(self, same_start=False, **kwargs):
         r'''
         Start walkers in the pore space at random location
         same_start starts all the walkers at the same spot if True and at
@@ -202,10 +202,16 @@ class RandomWalk():
         ----------
         same_start: bool
             determines whether to start all the walkers at the same coordinate
+        starting_point: ND-array
+            starting point for the walkers, if same_start = True
         '''
+        
         if not same_start:
             walkers = self._rand_start(self.im, num=self.nw)
+        elif 'starting_point' in kwargs and (self.im[tuple(kwargs['starting_point'])] == 1):
+            walkers = np.tile(kwargs['starting_point'], (self.nw, 1))
         else:
+            print('Random starting point - provided one is not in pore space')
             w = self._rand_start(self.im, num=1).flatten()
             walkers = np.tile(w, (self.nw, 1))
         return walkers
@@ -252,7 +258,7 @@ class RandomWalk():
                 real_coords.append(wr.copy())
         return real_coords
 
-    def run(self, nt=1000, nw=1, same_start=False, stride=1, num_proc=1):
+    def run(self, nt=1000, nw=1, same_start=False, stride=1, num_proc=1, **kwargs):
         r'''
         Main run loop over nt timesteps and nw walkers.
         same_start starts all the walkers at the same spot if True and at
@@ -272,13 +278,19 @@ class RandomWalk():
             number of concurrent processes to start running. Please make sure
             that the run method is c a __main__ method when using
             multiprocessing.
+        *starting_point: np array of same dimension of the image
+            if same_start is True these are the coordinates of the starting point
+            default is the center of the image, if in the pore space 
         '''
         self.nt = int(nt)
         self.nw = int(nw)
         self.stride = stride
         record_t = int(self.nt/stride)
         # Get starts
-        walkers = self._get_starts(same_start)
+        if 'starting_point' in kwargs and same_start:
+            walkers = self._get_starts(same_start, **{'starting_point': np.array(kwargs['starting_point'])})
+        else:
+            walkers = self._get_starts(same_start, **{'starting_point': np.array([int(i/2) for i in self.shape])})
         if self.seed:
             # Generate a seed for each timestep
             np.random.seed(1)
