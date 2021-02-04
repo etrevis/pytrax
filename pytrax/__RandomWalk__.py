@@ -278,7 +278,7 @@ class RandomWalk():
             number of concurrent processes to start running. Please make sure
             that the run method is c a __main__ method when using
             multiprocessing.
-        *starting_point: np array of same dimension of the image
+        **starting_point: np array of same dimension of the image
             if same_start is True these are the coordinates of the starting point
             default is the center of the image, if in the pore space 
         '''
@@ -328,11 +328,24 @@ class RandomWalk():
         chunks = [l[i:i + n] for i in range(0, len(l), n)]
         return chunks
 
-    def calc_msd(self):
+    def calc_msd(self, **kwargs):
         r'''
         Calculate the mean square displacement
+        Parameters:
+        hard_walls = excludes all the walkers that ventured outside the picture 'walls' from the msd calculations
         '''
-        disp = self.real_coords[:, :, :] - self.real_coords[0, :, :]
+        if 'hard_walls' in kwargs:
+            if kwargs['hard_walls']:
+                mask = (self.real_coords < 0) | (self.real_coords > (self.shape[0]))
+                ids = np.nonzero(mask)
+                # Finds the unique walkers that went outside the picture
+                ids_w = np.unique(ids[1], axis=0)
+                self.real_coords_reduced = np.delete(self.real_coords, ids_w, axis=1)
+                disp = self.real_coords_reduced[:, :, :] - self.real_coords_reduced[0, :, :]
+            else:
+                disp = self.real_coords[:, :, :] - self.real_coords[0, :, :]
+        else:
+            disp = self.real_coords[:, :, :] - self.real_coords[0, :, :]
         self.axial_sq_disp = disp**2
         self.sq_disp = np.sum(disp**2, axis=2)
         self.msd = np.mean(self.sq_disp, axis=1)
@@ -353,12 +366,15 @@ class RandomWalk():
         self.data[descriptor + '_tau'] = tau
         self.data[descriptor + '_rsq'] = rsq
 
-    def plot_msd(self):
+    def plot_msd(self, **kwargs):
         r'''
         Plot the mean square displacement for all walkers vs timestep
         And include a least squares regression fit.
         '''
-        self.calc_msd()
+        if 'hard_walls' in kwargs:
+            self.calc_msd(hard_walls=kwargs['hard_walls'])
+        else:
+            self.calc_msd()
         self.data = {}
         fig, ax = plt.subplots(figsize=[6, 6])
         ax.set(aspect=1, xlim=(0, self.nt), ylim=(0, self.nt))
